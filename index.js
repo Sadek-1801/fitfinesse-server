@@ -2,10 +2,10 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion } = require("mongodb");
 const port = process.env.PORT || 9000;
 const app = express();
-require('dotenv').config()
+require("dotenv").config();
 
 // middle ware
 const corsOptions = {
@@ -15,10 +15,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json())
-app.use(cookieParser())
-
-
+app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.qv5d3vd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -28,39 +26,52 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
   try {
-
-    const userCollection = client.db('fitfinesse').collection('users')
+    const userCollection = client.db("fitfinesse").collection("users");
+    const classCollection = client.db("fitfinesse").collection("classes");
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
 
+    // classes apli
 
+    app.get("/featured-classes", async (req, res) => {
+      // const bookingNumber = req.query.bookingNumber;
+      // if (bookingNumber === 'dsc') {
+        // ToDo: try to sort in query  
+        const query = {};
+        const sort = { numberOfBookings: -1 };
+        const result = await classCollection.find(query).sort(sort).toArray();
+        res.send(result);
+    });
 
-    app.put("/user", async(req, res)=>{
-        const user = req.body;
-        const query = {email: user?.email};
-        const isExist = await userCollection.findOne(query);
-        if(isExist){
-            return res.send(isExist)
-        }
-        const options = { upsert: true}
-        const updateDoc = {
-            $set:{
-                ...user,
-                time: Date.now(),
-            },
-        }
-        const result = await userCollection.updateOne(query, updateDoc, options);
-        res.send(result)
-    })
+    // users api
+    app.put("/user", async (req, res) => {
+      const user = req.body;
+      const query = { email: user?.email };
+      const isExist = await userCollection.findOne(query);
+      if (isExist) {
+        return res.send(isExist);
+      }
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          ...user,
+          time: Date.now(),
+        },
+      };
+      const result = await userCollection.updateOne(query, updateDoc, options);
+      res.send(result);
+    });
 
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -68,15 +79,9 @@ async function run() {
 }
 run().catch(console.dir);
 
-
-
-
-app.get('/', (req, res) => {
-    res.send("Fitfinesse server running")
-})
-app.listen(port, ()=>{
-    console.log(`Fitfinesse Server is running on ${port}`);
-})
-
-
-
+app.get("/", (req, res) => {
+  res.send("Fitfinesse server running");
+});
+app.listen(port, () => {
+  console.log(`Fitfinesse Server is running on ${port}`);
+});
