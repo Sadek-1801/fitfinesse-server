@@ -47,7 +47,8 @@ async function run() {
         // const sort = { numberOfBookings: -1 };
         // const result = await classCollection.find(query).sort(sort).toArray();
         const result = await classCollection.aggregate([
-          { $sort : { numberOfBookings: -1 } }
+          { $sort : { numberOfBookings: -1 } },
+          { $limit: 6}
         ]).toArray();
         res.send(result);
     });
