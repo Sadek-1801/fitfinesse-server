@@ -35,6 +35,7 @@ async function run() {
     const classCollection = client.db("fitfinesse").collection("classes");
     const reviewsCollection = client.db("fitfinesse").collection("reviews");
     const forumCollection = client.db("fitfinesse").collection("forum");
+    const subCollection = client.db("fitfinesse").collection("subscriber");
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
@@ -54,6 +55,12 @@ async function run() {
         ]).toArray();
         res.send(result);
     });
+    // subscriber collection
+    app.post("/subscriber", async(req, res) => {
+      const subscriber = req.body;
+      const result = await subCollection.insertOne(subscriber);
+      res.send(result)
+    })
 
     // forum posts collection
     app.get("/forum-posts", async(req, res) => {
@@ -83,7 +90,7 @@ async function run() {
       res.send(result);
     });
 
-    // revies api
+    // reviews api
     app.get("/reviews", async(req, res) =>{
       const result = await reviewsCollection.find().toArray();
       res.send(result)
