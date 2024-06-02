@@ -33,6 +33,8 @@ async function run() {
   try {
     const userCollection = client.db("fitfinesse").collection("users");
     const classCollection = client.db("fitfinesse").collection("classes");
+    const reviewsCollection = client.db("fitfinesse").collection("reviews");
+    const forumCollection = client.db("fitfinesse").collection("forum");
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
@@ -53,6 +55,15 @@ async function run() {
         res.send(result);
     });
 
+    // forum posts collection
+    app.get("/forum-posts", async(req, res) => {
+      const result = await forumCollection.aggregate([
+        { $sort : { date: -1 } },
+        { $limit: 4}
+      ]).toArray();
+      res.send(result)
+    });
+
     // users api
     app.put("/user", async (req, res) => {
       const user = req.body;
@@ -71,6 +82,12 @@ async function run() {
       const result = await userCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
+
+    // revies api
+    app.get("/reviews", async(req, res) =>{
+      const result = await reviewsCollection.find().toArray();
+      res.send(result)
+    })
 
     await client.db("admin").command({ ping: 1 });
     console.log(
