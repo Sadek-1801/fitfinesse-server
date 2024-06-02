@@ -42,10 +42,13 @@ async function run() {
     app.get("/featured-classes", async (req, res) => {
       // const bookingNumber = req.query.bookingNumber;
       // if (bookingNumber === 'dsc') {
-        // ToDo: try to sort in query  
-        const query = {};
-        const sort = { numberOfBookings: -1 };
-        const result = await classCollection.find(query).sort(sort).toArray();
+        // // ToDo: try to sort in query  
+        // const query = {};
+        // const sort = { numberOfBookings: -1 };
+        // const result = await classCollection.find(query).sort(sort).toArray();
+        const result = await classCollection.aggregate([
+          { $sort : { numberOfBookings: -1 } }
+        ]).toArray();
         res.send(result);
     });
 
