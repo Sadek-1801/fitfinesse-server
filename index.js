@@ -36,39 +36,57 @@ async function run() {
     const reviewsCollection = client.db("fitfinesse").collection("reviews");
     const forumCollection = client.db("fitfinesse").collection("forum");
     const subCollection = client.db("fitfinesse").collection("subscriber");
+    const trainersCollection = client.db("fitfinesse").collection("trainers");
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
 
-    // classes apli
+    // trainers api
+    app.post("/beATrainer", async (req, res) => {
+      const body = req.body;
+      const result = await trainersCollection.insertOne(body);
+      res.send(result);
+    });
 
+    // classes apli
+    app.get("/classes", async (req, res) => {
+      const result = await classCollection
+        .aggregate([
+          {
+            $project: {
+              _id: 0,
+              title: 1,
+            },
+          },
+        ])
+        .toArray();
+      res.send(result);
+    });
     app.get("/featured-classes", async (req, res) => {
       // const bookingNumber = req.query.bookingNumber;
       // if (bookingNumber === 'dsc') {
-        // // ToDo: try to sort in query  
-        // const query = {};
-        // const sort = { numberOfBookings: -1 };
-        // const result = await classCollection.find(query).sort(sort).toArray();
-        const result = await classCollection.aggregate([
-          { $sort : { numberOfBookings: -1 } },
-          { $limit: 6}
-        ]).toArray();
-        res.send(result);
+      // // ToDo: try to sort in query
+      // const query = {};
+      // const sort = { numberOfBookings: -1 };
+      // const result = await classCollection.find(query).sort(sort).toArray();
+      const result = await classCollection
+        .aggregate([{ $sort: { numberOfBookings: -1 } }, { $limit: 6 }])
+        .toArray();
+      res.send(result);
     });
     // subscriber collection
-    app.post("/subscriber", async(req, res) => {
+    app.post("/subscriber", async (req, res) => {
       const subscriber = req.body;
       const result = await subCollection.insertOne(subscriber);
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     // forum posts collection
-    app.get("/forum-posts", async(req, res) => {
-      const result = await forumCollection.aggregate([
-        { $sort : { date: -1 } },
-        { $limit: 4}
-      ]).toArray();
-      res.send(result)
+    app.get("/forum-posts", async (req, res) => {
+      const result = await forumCollection
+        .aggregate([{ $sort: { date: -1 } }, { $limit: 4 }])
+        .toArray();
+      res.send(result);
     });
 
     // users api
@@ -77,7 +95,14 @@ async function run() {
       const query = { email: user?.email };
       const isExist = await userCollection.findOne(query);
       if (isExist) {
-        return res.send(isExist);
+        if (user.status === "pending") {
+          const result = await userCollection.updateOne(query, {
+            $set: { status: user?.status },
+          });
+          res.send(result);
+        } else {
+          return res.send(isExist);
+        }
       }
       const options = { upsert: true };
       const updateDoc = {
@@ -91,10 +116,10 @@ async function run() {
     });
 
     // reviews api
-    app.get("/reviews", async(req, res) =>{
+    app.get("/reviews", async (req, res) => {
       const result = await reviewsCollection.find().toArray();
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
