@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 9000;
 const app = express();
 require("dotenv").config();
@@ -48,21 +48,22 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/trainers", async(req, res) =>{
+    app.get("/trainers", async (req, res) => {
       const result = await trainersCollection.find().toArray();
-      res.send(result)
-    })
-    app.get("/featured-trainers", async(req, res) => {
-      const result = await trainersCollection.aggregate([
-        {
-          $sort:{experience: -1}
-        },
-        {
-          $limit: 3
-        }
-      ]).toArray()
-      res.send(result)
-    })
+      res.send(result);
+    });
+    app.get("/trainer/:id", async (req, res) => {
+      const id = req.params.id
+      const query = {_id: new ObjectId(id)}
+      const result = await trainersCollection.findOne(query);
+      res.send(result);
+    });
+    app.get("/featured-trainers", async (req, res) => {
+      const result = await trainersCollection
+        .aggregate([{ $sort: { experience: -1 } }, { $limit: 3 }])
+        .toArray();
+      res.send(result);
+    });
 
     // classes apli
     app.get("/classes", async (req, res) => {
