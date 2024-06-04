@@ -52,6 +52,17 @@ async function run() {
       const result = await trainersCollection.find().toArray();
       res.send(result)
     })
+    app.get("/featured-trainers", async(req, res) => {
+      const result = await trainersCollection.aggregate([
+        {
+          $sort:{experience: -1}
+        },
+        {
+          $limit: 3
+        }
+      ]).toArray()
+      res.send(result)
+    })
 
     // classes apli
     app.get("/classes", async (req, res) => {
