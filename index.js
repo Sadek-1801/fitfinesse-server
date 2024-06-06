@@ -37,10 +37,16 @@ async function run() {
     const forumCollection = client.db("fitfinesse").collection("forum");
     const subCollection = client.db("fitfinesse").collection("subscriber");
     const trainersCollection = client.db("fitfinesse").collection("trainers");
+    const trainerBookingCollection = client.db("fitfinesse").collection("trainerBooking");
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
-
+    // user-payment
+    app.post("/trainer-booking", async(req, res) =>{
+      const body = req.body
+      const result = await trainerBookingCollection.insertOne(body)
+      res.send(result)
+    })
     // trainers api
     app.post("/beATrainer", async (req, res) => {
       const body = req.body;
