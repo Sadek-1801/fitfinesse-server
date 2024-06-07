@@ -70,8 +70,17 @@ async function run() {
         .toArray();
       res.send(result);
     });
+    app.patch("/deleteTrainer/:email", async(req, res) => {
+      const email = req.params.email
+      const query = {email}
+      console.log(email);
+      const result = await userCollection.updateOne(query, {
+        $set:{role: "member", status: "verified"}
+      })
+      res.send(result)
+    })
 
-    // classes apli
+    // classes api
     app.get("/classes", async (req, res) => {
       const result = await classCollection
         .aggregate([
@@ -101,6 +110,10 @@ async function run() {
     app.post("/subscriber", async (req, res) => {
       const subscriber = req.body;
       const result = await subCollection.insertOne(subscriber);
+      res.send(result);
+    });
+    app.get("/subscribers", async (req, res) => {
+      const result = await subCollection.find().toArray();
       res.send(result);
     });
 
