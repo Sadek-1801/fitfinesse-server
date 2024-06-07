@@ -37,16 +37,18 @@ async function run() {
     const forumCollection = client.db("fitfinesse").collection("forum");
     const subCollection = client.db("fitfinesse").collection("subscriber");
     const trainersCollection = client.db("fitfinesse").collection("trainers");
-    const trainerBookingCollection = client.db("fitfinesse").collection("trainerBooking");
+    const trainerBookingCollection = client
+      .db("fitfinesse")
+      .collection("trainerBooking");
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
     // user-payment
-    app.post("/trainer-booking", async(req, res) =>{
-      const body = req.body
-      const result = await trainerBookingCollection.insertOne(body)
-      res.send(result)
-    })
+    app.post("/trainer-booking", async (req, res) => {
+      const body = req.body;
+      const result = await trainerBookingCollection.insertOne(body);
+      res.send(result);
+    });
     // trainers api
     app.post("/beATrainer", async (req, res) => {
       const body = req.body;
@@ -59,8 +61,8 @@ async function run() {
       res.send(result);
     });
     app.get("/trainer/:id", async (req, res) => {
-      const id = req.params.id
-      const query = {_id: new ObjectId(id)}
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
       const result = await trainersCollection.findOne(query);
       res.send(result);
     });
@@ -70,15 +72,14 @@ async function run() {
         .toArray();
       res.send(result);
     });
-    app.patch("/deleteTrainer/:email", async(req, res) => {
-      const email = req.params.email
-      const query = {email}
-      console.log(email);
+    app.patch("/deleteTrainer/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
       const result = await userCollection.updateOne(query, {
-        $set:{role: "member", status: "verified"}
-      })
-      res.send(result)
-    })
+        $set: { role: "member", status: "verified" },
+      });
+      res.send(result);
+    });
 
     // classes api
     app.get("/classes", async (req, res) => {
@@ -106,6 +107,11 @@ async function run() {
         .toArray();
       res.send(result);
     });
+    app.post("/addClass", async(req, res)=>{
+      const body = req.body;
+      const result = await classCollection.insertOne(body);
+      res.send(result)
+    })
     // subscriber collection
     app.post("/subscriber", async (req, res) => {
       const subscriber = req.body;
