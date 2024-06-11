@@ -37,6 +37,9 @@ async function run() {
     const forumCollection = client.db("fitfinesse").collection("forum");
     const subCollection = client.db("fitfinesse").collection("subscriber");
     const trainersCollection = client.db("fitfinesse").collection("trainers");
+    const appliedTrainerCollection = client
+      .db("fitfinesse")
+      .collection("appliedTrainer");
     const trainerBookingCollection = client
       .db("fitfinesse")
       .collection("trainerBooking");
@@ -52,7 +55,7 @@ async function run() {
     // trainers api
     app.post("/beATrainer", async (req, res) => {
       const body = req.body;
-      const result = await trainersCollection.insertOne(body);
+      const result = await appliedTrainerCollection.insertOne(body);
       res.send(result);
     });
 
@@ -63,6 +66,12 @@ async function run() {
     app.get("/trainer/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
+      const result = await trainersCollection.findOne(query);
+      res.send(result);
+    });
+    app.get("/fetchTrainer/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
       const result = await trainersCollection.findOne(query);
       res.send(result);
     });
@@ -95,6 +104,24 @@ async function run() {
         .toArray();
       res.send(result);
     });
+    app.get("/allClasses", async (req, res) => {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 6;
+      const skip = (page - 1) * limit;
+      const result = await classCollection
+        .find()
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+      const totalClasses = await classCollection.countDocuments();
+
+      res.send({
+        classes: result,
+        totalPages: Math.ceil(totalClasses / limit),
+        currentPage: page,
+      });
+    });
+
     app.get("/featured-classes", async (req, res) => {
       // const bookingNumber = req.query.bookingNumber;
       // if (bookingNumber === 'dsc') {
@@ -107,11 +134,11 @@ async function run() {
         .toArray();
       res.send(result);
     });
-    app.post("/addClass", async(req, res)=>{
+    app.post("/addClass", async (req, res) => {
       const body = req.body;
       const result = await classCollection.insertOne(body);
-      res.send(result)
-    })
+      res.send(result);
+    });
     // subscriber collection
     app.post("/subscriber", async (req, res) => {
       const subscriber = req.body;
@@ -128,6 +155,29 @@ async function run() {
       const result = await forumCollection
         .aggregate([{ $sort: { date: -1 } }, { $limit: 4 }])
         .toArray();
+      res.send(result);
+    });
+    app.get("/allForumPosts", async (req, res) => {
+      const { page = 1, limit = 10 } = req.query;
+      const skip = (page - 1) * limit;
+      const result = await forumCollection
+        .find()
+        .skip(skip)
+        .limit(Number(limit))
+        .toArray();
+      const total = await forumCollection.countDocuments();
+      res.send({ total, result });
+    });
+
+    // Up-vote and down-vote endpoints
+    app.post("/vote", async (req, res) => {
+      const { postId, voteType } = req.body; // voteType: 'up' or 'down'
+      const update =
+        voteType === "up" ? { $inc: { votes: 1 } } : { $inc: { votes: -1 } };
+      const result = await forumCollection.updateOne(
+        { _id: new ObjectId(postId) },
+        update
+      );
       res.send(result);
     });
 
