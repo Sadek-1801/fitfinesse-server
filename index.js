@@ -240,20 +240,26 @@ async function run() {
     app.get("/allClasses", async (req, res) => {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 6;
+      const searchTerm = req.query.search || "";
       const skip = (page - 1) * limit;
+  
+      const searchQuery = searchTerm
+          ? { title: { $regex: searchTerm, $options: "i" } }
+          : {};
+  
       const result = await classCollection
-        .find()
-        .skip(skip)
-        .limit(limit)
-        .toArray();
-      const totalClasses = await classCollection.countDocuments();
-
+          .find(searchQuery)
+          .skip(skip)
+          .limit(limit)
+          .toArray();
+      const totalClasses = await classCollection.countDocuments(searchQuery);
+  
       res.send({
-        classes: result,
-        totalPages: Math.ceil(totalClasses / limit),
-        currentPage: page,
+          classes: result,
+          totalPages: Math.ceil(totalClasses / limit),
+          currentPage: page,
       });
-    });
+  });
 
     app.get("/featured-classes", async (req, res) => {
       // const bookingNumber = req.query.bookingNumber;
