@@ -37,6 +37,7 @@ async function run() {
     const forumCollection = client.db("fitfinesse").collection("forum");
     const subCollection = client.db("fitfinesse").collection("subscriber");
     const trainersCollection = client.db("fitfinesse").collection("trainers");
+    const feedbackCollection = client.db("fitfinesse").collection("feedback");
     const appliedTrainerCollection = client
       .db("fitfinesse")
       .collection("appliedTrainer");
@@ -49,14 +50,120 @@ async function run() {
     // user-payment
     app.post("/trainer-booking", async (req, res) => {
       const body = req.body;
-      const result = await trainerBookingCollection.insertOne(body);
+      const bookingWithTime = {
+        ...body,
+        time: new Date(),
+      };
+      const result = await trainerBookingCollection.insertOne(bookingWithTime);
+      res.send(result);
+    });
+    app.get("/transaction", async (req, res) => {
+      const result = await trainerBookingCollection
+        .find()
+        .sort({ time: -1 })
+        .toArray();
       res.send(result);
     });
     // trainers api
     app.post("/beATrainer", async (req, res) => {
       const body = req.body;
-      const result = await appliedTrainerCollection.insertOne(body);
+      const query = { email: body?.email };
+      try {
+        const isExist = await appliedTrainerCollection.findOne(query);
+        if (!isExist) {
+          const result = await appliedTrainerCollection.insertOne(body);
+          if (result.insertedId) {
+            // Update the user's status in another collection
+            const updateDocument = {
+              $set: { status: "pending" },
+            };
+            const updateResult = await userCollection.updateOne(
+              query,
+              updateDocument
+            );
+
+            if (updateResult.modifiedCount > 0) {
+              res.send({
+                message:
+                  "You've successfully applied! Wait for admin confirmation.",
+              });
+            } else {
+              res
+                .status(500)
+                .send({ message: "Failed to update user status." });
+            }
+          } else {
+            res.status(500).send({ message: "Failed to insert trainer data." });
+          }
+        } else {
+          res.send({ message: "Wait for Admin Approval" });
+        }
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .send({ message: "An error occurred.", error: error.message });
+      }
+    });
+    app.get("/appliedTrainers", async (req, res) => {
+      const result = await appliedTrainerCollection.find().toArray();
       res.send(result);
+    });
+    app.get("/appTrainer/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await appliedTrainerCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.delete("/rejected/:id", async (req, res) => {
+      const { id } = req.params;
+      const { feedback } = req.body;
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).send({ message: "Invalid trainer ID" });
+      }
+
+      try {
+        // Fetch the trainer's data
+        const trainer = await appliedTrainerCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        if (!trainer) {
+          return res.status(404).send({ message: "Trainer not found" });
+        }
+
+        // Store feedback (optional)
+        if (feedback) {
+          await feedbackCollection.insertOne({
+            trainerId: new ObjectId(id),
+            email: trainer.email,
+            feedback,
+            date: new Date(),
+          });
+        }
+
+        // Delete the applied trainer
+        const result = await appliedTrainerCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        const updateResult = await userCollection.updateOne(
+          { email: trainer.email },
+          { $set: { role: "member", status: "rejected" } }
+        );
+
+        if (updateResult.modifiedCount === 1) {
+          res.send({
+            message:
+              "Trainer rejected and removed from the applied list, user status updated",
+          });
+        } else {
+          res.status(500).send({ message: "Failed to update user status" });
+        }
+      } catch (err) {
+        res.status(500).send({ message: "Internal Server Error" });
+      }
     });
 
     app.get("/trainers", async (req, res) => {
@@ -81,13 +188,39 @@ async function run() {
         .toArray();
       res.send(result);
     });
+
     app.patch("/deleteTrainer/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email };
-      const result = await userCollection.updateOne(query, {
-        $set: { role: "member", status: "verified" },
-      });
-      res.send(result);
+
+      try {
+        // Update the user's role to "member" and status to "verified" in the userCollection
+        const updateResult = await userCollection.updateOne(query, {
+          $set: { role: "member", status: "verified" },
+        });
+
+        // If the update was successful, proceed to delete from trainersCollection
+        if (updateResult.modifiedCount > 0) {
+          const deleteResult = await trainersCollection.deleteOne(query);
+
+          if (deleteResult.deletedCount > 0) {
+            res.status(200).send({ message: "Trainer deleted successfully" });
+          } else {
+            res
+              .status(404)
+              .send({ message: "Trainer not found in trainersCollection" });
+          }
+        } else {
+          res
+            .status(404)
+            .send({ message: "User not found or already a member" });
+        }
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .send({ message: "An error occurred while processing your request" });
+      }
     });
 
     // classes api
@@ -187,15 +320,9 @@ async function run() {
       const query = { email: user?.email };
       const isExist = await userCollection.findOne(query);
       if (isExist) {
-        if (user.status === "pending") {
-          const result = await userCollection.updateOne(query, {
-            $set: { status: user?.status },
-          });
-          res.send(result);
-        } else {
-          return res.send(isExist);
-        }
+        return res.send(isExist);
       }
+      // todo: update name and photo
       const options = { upsert: true };
       const updateDoc = {
         $set: {
@@ -205,6 +332,64 @@ async function run() {
       };
       const result = await userCollection.updateOne(query, updateDoc, options);
       res.send(result);
+    });
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+    app.patch("/user/update/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      try {
+        const user = await appliedTrainerCollection.findOne(query);
+
+        if (user) {
+          const deleteResult = await appliedTrainerCollection.deleteOne(query);
+
+          if (deleteResult.deletedCount === 1) {
+            const insertResult = await trainersCollection.insertOne(user);
+
+            if (insertResult.insertedId) {
+              // Update the user status in userCollection
+              const updateDoc = {
+                $set: { ...req.body, role: "trainer", status: "verified" },
+              };
+              const updateResult = await userCollection.updateOne(
+                query,
+                updateDoc
+              );
+
+              if (updateResult.modifiedCount > 0) {
+                res.send({
+                  message: "User has been verified and promoted to trainer.",
+                });
+              } else {
+                res.send({
+                  message: "Failed to update user status. Please try again.",
+                });
+              }
+            } else {
+              res.send({
+                message:
+                  "Failed to add user to trainers collection. Please try again.",
+              });
+            }
+          } else {
+            res.send({
+              message:
+                "Failed to remove user from applied trainers collection. Please try again.",
+            });
+          }
+        } else {
+          res.send({
+            message: "User not found in applied trainers collection.",
+          });
+        }
+      } catch (err) {
+        res.status(500).send({ message: err.message });
+      }
     });
 
     // reviews api
