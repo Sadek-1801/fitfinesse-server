@@ -9,7 +9,13 @@ require("dotenv").config();
 
 // middle ware
 const corsOptions = {
-  origin: ["http://localhost:5173", "http://localhost:5174"],
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://fitfinesse.surge.sh",
+    "https://fitfinesse-e1400.web.app",
+    "https://fitfinesse.netlify.app",
+  ],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -105,6 +111,30 @@ async function run() {
           .send({ message: "An error occurred.", error: error.message });
       }
     });
+    // update trainer
+    app.patch("/update-trainer/:email", async (req, res) => {
+      const body = req.body;
+      const email = req.params.email;
+      const query = { email };
+      const updateDoc = {
+        $set:{
+          ...body
+        }
+      }
+      try {
+        const result = await appliedTrainerCollection.updateOne(query, updateDoc);
+        if(result.modifiedCount > 0){
+          res.send({message: "You've successfully updated your profile."})
+        }else {
+          res.send({ message: "Please Try Again" });
+        }
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .send({ message: "An error occurred.", error: error.message });
+      }
+    });
     app.get("/appliedTrainers", async (req, res) => {
       const result = await appliedTrainerCollection.find().toArray();
       res.send(result);
@@ -176,6 +206,12 @@ async function run() {
       const result = await trainersCollection.findOne(query);
       res.send(result);
     });
+    app.get("/trainer-email/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await trainersCollection.findOne(query);
+      res.send(result);
+    });
     app.get("/fetchTrainer/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email };
@@ -242,24 +278,25 @@ async function run() {
       const limit = parseInt(req.query.limit) || 6;
       const searchTerm = req.query.search || "";
       const skip = (page - 1) * limit;
-  
-      const searchQuery = searchTerm
-          ? { title: { $regex: searchTerm, $options: "i" } }
-          : {};
-  
+
+      const query = {};
+      if (searchTerm) {
+        query.title = { $regex: searchTerm, $options: "i" };
+      }
+
       const result = await classCollection
-          .find(searchQuery)
-          .skip(skip)
-          .limit(limit)
-          .toArray();
-      const totalClasses = await classCollection.countDocuments(searchQuery);
-  
+        .find(query)
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+      const totalClasses = await classCollection.countDocuments(query);
+
       res.send({
-          classes: result,
-          totalPages: Math.ceil(totalClasses / limit),
-          currentPage: page,
+        classes: result,
+        totalPages: Math.ceil(totalClasses / limit),
+        currentPage: page,
       });
-  });
+    });
 
     app.get("/featured-classes", async (req, res) => {
       // const bookingNumber = req.query.bookingNumber;
@@ -289,6 +326,28 @@ async function run() {
       res.send(result);
     });
 
+    // delete slots
+    app.delete("/slots/:slotName", async (req, res) => {
+      const slotName = req.params.slotName;
+
+      try {
+        const result = await db
+          .collection("your_collection_name")
+          .updateOne(
+            { "availableTime.slots.slotName": slotName },
+            { $pull: { "availableTime.slots": { slotName } } }
+          );
+
+        if (result.modifiedCount > 0) {
+          res.status(200).send({ message: "Slot deleted successfully" });
+        } else {
+          res.status(404).send({ message: "Slot not found" });
+        }
+      } catch (error) {
+        res.status(500).send({ message: "An error occurred", error });
+      }
+    });
+
     // forum posts collection
     app.get("/forum-posts", async (req, res) => {
       const result = await forumCollection
@@ -296,16 +355,27 @@ async function run() {
         .toArray();
       res.send(result);
     });
+    app.post("/addForum", async (req, res) => {
+      const body = req.body
+      const result = await forumCollection.insertOne(body)
+      res.send(result);
+    });
     app.get("/allForumPosts", async (req, res) => {
-      const { page = 1, limit = 10 } = req.query;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 6;
       const skip = (page - 1) * limit;
+
       const result = await forumCollection
         .find()
         .skip(skip)
-        .limit(Number(limit))
+        .limit(limit)
         .toArray();
       const total = await forumCollection.countDocuments();
-      res.send({ total, result });
+
+      res.send({
+        total,
+        result,
+      });
     });
 
     // Up-vote and down-vote endpoints
