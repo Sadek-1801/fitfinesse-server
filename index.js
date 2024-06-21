@@ -53,6 +53,14 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_TOKEN, {
+        expiresIn: "365d",
+      });
+      res.send({token})
+    });
+
     // user-payment
     app.post("/trainer-booking", async (req, res) => {
       const body = req.body;
@@ -117,15 +125,15 @@ async function run() {
       const email = req.params.email;
       const query = { email };
       const updateDoc = {
-        $set:{
-          ...body
-        }
-      }
+        $set: {
+          ...body,
+        },
+      };
       try {
-        const result = await appliedTrainerCollection.updateOne(query, updateDoc);
-        if(result.modifiedCount > 0){
-          res.send({message: "You've successfully updated your profile."})
-        }else {
+        const result = await trainersCollection.updateOne(query, updateDoc);
+        if (result.modifiedCount > 0) {
+          res.send({ message: "You've successfully updated your profile." });
+        } else {
           res.send({ message: "Please Try Again" });
         }
       } catch (error) {
@@ -135,6 +143,8 @@ async function run() {
           .send({ message: "An error occurred.", error: error.message });
       }
     });
+
+    // applied trainer
     app.get("/appliedTrainers", async (req, res) => {
       const result = await appliedTrainerCollection.find().toArray();
       res.send(result);
@@ -145,7 +155,7 @@ async function run() {
       const result = await appliedTrainerCollection.findOne(query);
       res.send(result);
     });
-
+    // delete a trainer after rejection
     app.delete("/rejected/:id", async (req, res) => {
       const { id } = req.params;
       const { feedback } = req.body;
@@ -196,16 +206,24 @@ async function run() {
       }
     });
 
+    // get rejected trainer
+    app.get("/applications", async (req, res) => {
+      const result = await feedbackCollection.find().toArray();
+      res.send(result);
+    });
+    // all trainers
     app.get("/trainers", async (req, res) => {
       const result = await trainersCollection.find().toArray();
       res.send(result);
     });
+    // single trainer by ID
     app.get("/trainer/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await trainersCollection.findOne(query);
       res.send(result);
     });
+    // single trainer by email
     app.get("/trainer-email/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email };
@@ -256,6 +274,21 @@ async function run() {
         res
           .status(500)
           .send({ message: "An error occurred while processing your request" });
+      }
+    });
+
+    // myTrainer
+    app.get("/myTrainer/:email", async (req, res) => {
+      const email = req.params.email;
+      try {
+        const result = await trainerBookingCollection
+          .find({ userEmail: email })
+          .toArray();
+        res.send(result);
+      } catch (err) {
+        res
+          .status(500)
+          .send({ message: "An error occured while passing your reques" });
       }
     });
 
@@ -331,12 +364,10 @@ async function run() {
       const slotName = req.params.slotName;
 
       try {
-        const result = await db
-          .collection("your_collection_name")
-          .updateOne(
-            { "availableTime.slots.slotName": slotName },
-            { $pull: { "availableTime.slots": { slotName } } }
-          );
+        const result = await trainersCollection.updateOne(
+          { "availableTime.slots.slotName": slotName },
+          { $pull: { "availableTime.slots": { slotName } } }
+        );
 
         if (result.modifiedCount > 0) {
           res.status(200).send({ message: "Slot deleted successfully" });
@@ -356,8 +387,8 @@ async function run() {
       res.send(result);
     });
     app.post("/addForum", async (req, res) => {
-      const body = req.body
-      const result = await forumCollection.insertOne(body)
+      const body = req.body;
+      const result = await forumCollection.insertOne(body);
       res.send(result);
     });
     app.get("/allForumPosts", async (req, res) => {
@@ -471,6 +502,11 @@ async function run() {
     // reviews api
     app.get("/reviews", async (req, res) => {
       const result = await reviewsCollection.find().toArray();
+      res.send(result);
+    });
+    app.post("/review", async (req, res) => {
+      const review = req.body;
+      const result = await reviewsCollection.insertOne(review);
       res.send(result);
     });
 
